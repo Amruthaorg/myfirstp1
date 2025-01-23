@@ -4,6 +4,7 @@ import re
 import json
 import sys
 import os
+from datetime import datetime
 
 
 def extract_js_object(html_content):
@@ -56,6 +57,17 @@ def process_html_file(spark, file_path):
         return None, None
 
 
+def generate_unique_output_path(base_output_dir):
+    """
+    Generate a unique output directory path to avoid overwriting an existing directory.
+    """
+    if not os.path.exists(base_output_dir):
+        return base_output_dir
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"{base_output_dir}_{timestamp}"
+
+
 def process_directory(input_dir, output_dir):
     """
     Process all files in the input directory and save the results to the output directory.
@@ -77,9 +89,12 @@ def process_directory(input_dir, output_dir):
         # Combine header and rows
         final_output = [header] + rows
 
+        # Check and handle existing output directory
+        unique_output_dir = generate_unique_output_path(output_dir)
+
         # Save to output directory
-        spark.sparkContext.parallelize(final_output).coalesce(1).saveAsTextFile(output_dir)
-        print(f"Output saved to {output_dir}")
+        spark.sparkContext.parallelize(final_output).coalesce(1).saveAsTextFile(unique_output_dir)
+        print(f"Output saved to {unique_output_dir}")
     else:
         print("No data to save.")
 
