@@ -2,10 +2,14 @@ from pyspark.sql import SparkSession
 from bs4 import BeautifulSoup
 import re
 import json
+import sys
+import os
 
 
 def extract_js_object(html_content):
-
+    """
+    Extract JavaScript object embedded in the HTML content.
+    """
     pattern = r'var trackData = ({.*?});'
     match = re.search(pattern, html_content, re.DOTALL)
     if match:
@@ -24,45 +28,69 @@ def extract_js_object(html_content):
 
 
 def extract_title(html_content):
-
+    """
+    Extract the title from HTML content using BeautifulSoup.
+    """
     soup = BeautifulSoup(html_content, 'html.parser')
     title_tag = soup.find('title')
     return title_tag.text.strip() if title_tag else "No Title Found"
 
 
-def process_html_file(file_name):
-
-    spark = SparkSession.builder.appName("HTML Processor").getOrCreate()
-
-    rdd = spark.sparkContext.textFile(file_name)
+def process_html_file(spark, file_path):
+    """
+    Process a single HTML file to extract the title and JavaScript object.
+    """
+    rdd = spark.sparkContext.textFile(file_path)
     html_content = "\n".join(rdd.collect())
 
     title = extract_title(html_content)
-
     track_data = extract_js_object(html_content)
 
     if track_data:
         keys = ["title"] + list(track_data.keys())
         values = [title] + list(track_data.values())
 
-        header = ",".join(keys)
-        data_row = ",".join(map(str, values))
-        return [header, data_row]
+        return keys, values
     else:
-        print("No JavaScript object found.")
-        return None
+        print(f"No JavaScript object found in file: {file_path}")
+        return None, None
 
-if __name__ == "__main__":
 
-    file_name = "/Ammu1/datafiles/pagesource/Visit_1.txt"
-    output_path = "/Ammu1/datafiles/output_files/output1"
+def process_directory(input_dir, output_dir):
+    """
+    Process all files in the input directory and save the results to the output directory.
+    """
+    spark = SparkSession.builder.appName("HTML Processor").getOrCreate()
+    header = None
+    rows = []
 
-    result = process_html_file(file_name)
+    for file_name in os.listdir(input_dir):
+        file_path = os.path.join(input_dir, file_name)
+        if os.path.isfile(file_path):
+            keys, values = process_html_file(spark, file_path)
+            if keys and values:
+                if not header:
+                    header = ",".join(keys)
+                rows.append(",".join(map(str, values)))
 
-    if result:
-        spark = SparkSession.builder.appName("HTML Processor").getOrCreate()
+    if rows:
+        # Combine header and rows
+        final_output = [header] + rows
 
-        spark.sparkContext.parallelize(result).coalesce(1).saveAsTextFile(output_path)
-        print(f"Output saved to {output_path}")
+        # Save to output directory
+        spark.sparkContext.parallelize(final_output).coalesce(1).saveAsTextFile(output_dir)
+        print(f"Output saved to {output_dir}")
     else:
         print("No data to save.")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print("Usage: spark-submit app.py <input_directory> <output_directory>")
+        sys.exit(1)
+
+    input_dir = sys.argv[1]
+    output_dir = sys.argv[2]
+
+    process_directory(input_dir, output_dir)
+
