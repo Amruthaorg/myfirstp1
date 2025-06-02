@@ -400,6 +400,7 @@ on i.inspection_business_name = V.inspection_business_name
 join person_details_vw p 
 on v.inspection_business_name = p.inspection_business_name 
 limit 20;
+
 CREATE FUNCTION ExtractSeatingAndRisk(description TEXT)
 RETURNS VARCHAR(100)
 DETERMINISTIC
