@@ -400,4 +400,27 @@ on i.inspection_business_name = V.inspection_business_name
 join person_details_vw p 
 on v.inspection_business_name = p.inspection_business_name 
 limit 20;
+CREATE FUNCTION ExtractSeatingAndRisk(description TEXT)
+RETURNS VARCHAR(100)
+DETERMINISTIC
+BEGIN
+    DECLARE seating_range VARCHAR(50);
+    DECLARE risk_category VARCHAR(50);
+    DECLARE combined_output VARCHAR(100);
 
+    -- Extract seating range: between 'Seating ' and ' -'
+    SET seating_range = TRIM(SUBSTRING_INDEX(SUBSTRING_INDEX(description, ' -', 1), 'Seating ', -1));
+
+    -- Extract risk category: everything after 'Risk Category'
+    SET risk_category = TRIM(SUBSTRING_INDEX(description, 'Risk Category', -1));
+
+    -- Combine
+    SET combined_output = CONCAT('Seating: ', seating_range, ' | Risk: ', risk_category);
+
+    RETURN combined_output;
+END //
+
+DELIMITER ;
+
+SELECT Description,
+ExtractSeatingAndRisk(Description) AS Parsed_Info FROM food_inspections_cleaned;
