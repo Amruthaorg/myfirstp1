@@ -421,6 +421,18 @@ BEGIN
     RETURN combined_output;
 END //
 
+CREATE PROCEDURE GetSeatingAndRiskInfo()
+BEGIN
+    SELECT Description,
+	ExtractSeatingAndRisk(Description) AS seperated_Info
+    FROM food_inspections_cleaned;
+END;
+//
+
+DELIMITER ;
+
+CALL GetSeatingAndRiskInfo();
+
 DELIMITER ;
 
 SELECT Description,
